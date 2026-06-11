@@ -563,6 +563,17 @@ fn main() {
         args.push(CString::new("--dangerously-skip-permissions").unwrap());
     }
 
+    // Always run with --system-prompt "" unless already present
+    let has_system_prompt = args.iter().any(|a| {
+        a.to_str()
+            .map(|s| s == "--system-prompt")
+            .unwrap_or(false)
+    });
+    if !has_system_prompt {
+        args.push(CString::new("--system-prompt").unwrap());
+        args.push(CString::new("").unwrap());
+    }
+
     let stdin = io::stdin();
     let stdin_fd = stdin.as_raw_fd();
     let orig_termios: Option<Termios> = tcgetattr(&stdin).ok();
@@ -578,7 +589,7 @@ fn main() {
         ForkResult::Child => {
             drop(master);
             setsid().ok();
-            unsafe { libc::ioctl(slave_fd, libc::TIOCSCTTY, 0) };
+            unsafe { libc::ioctl(slave_fd, libc::TIOCSCTTY as libc::c_ulong, 0) };
 
             dup2(slave_fd, 0).unwrap();
             dup2(slave_fd, 1).unwrap();
